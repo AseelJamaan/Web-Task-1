@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower or Tree Classification</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            margin: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #webcam-container {
+            margin-top: 20px;
+            border: 3px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: white;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        #label-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #counter {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: #555;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Flower or Tree Classification</h1>
+    <button type="button" onclick="init()">Start</button>
+    <button type="button" onclick="resetCounter()">Reset Counter</button>
+
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+    <div id="counter">Total Detections: 0</div>
+
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/QgGx-HXZT/";
+
+        let model, webcam, labelContainer, maxPredictions;
+        let detectionCounter = 0; // عداد الكشف
+
+        // تحميل النموذج وإعداد الكاميرا
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            // تحميل النموذج والبيانات الوصفية
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            // إعداد الكاميرا
+            const flip = true; // هل يجب قلب الصورة؟
+            webcam = new tmImage.Webcam(200, 200, flip); // العرض، الارتفاع، قلب الصورة
+            await webcam.setup(); // طلب الوصول إلى الكاميرا
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            // إضافة الكاميرا إلى الصفحة
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+        }
+
+        // تحديث الكاميرا والتنبؤات
+        async function loop() {
+            webcam.update(); // تحديث إطار الكاميرا
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        // إجراء التنبؤ
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            let detectionFlag = 0; // متغير لحساب عدد التنبؤات التي تتجاوز العتبة
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction =
+                    prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+
+                // إذا كانت النتيجة أكبر من 0.99 (أو قريبة من 100%)
+                if (prediction[i].probability > 0.99) {
+                    detectionFlag++;
+                }
+            }
+
+            // زيادة العداد فقط إذا كانت النتيجة أكبر من 0.99
+            if (detectionFlag > 0) {
+                detectionCounter++;
+                document.getElementById("counter").innerHTML = `Total Detections: ${detectionCounter}`;
+            }
+        }
+
+        // إعادة تعيين العداد
+        function resetCounter() {
+            detectionCounter = 0;
+            document.getElementById("counter").innerHTML = "Total Detections: 0";
+        }
+    </script>
+</body>
+</html>
